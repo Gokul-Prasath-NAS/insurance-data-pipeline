@@ -216,3 +216,32 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ========================
+# Project Specific
+# ========================
+
+# Environment variables and secrets - never commit these
+.env
+
+# Raw and processed data files - too large for GitHub
+data/raw/
+data/processed/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# VS Code settings
+.vscode/
+
+# Docker volumes
+volumes/
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
