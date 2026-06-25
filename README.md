@@ -1,7 +1,7 @@
 # 🏗️ Insurance Data Pipeline
 
-An end-to-end cloud data engineering pipeline that ingests, 
-transforms, and loads US insurance data into an analytical 
+An end-to-end cloud data engineering pipeline that ingests,
+transforms, and loads US insurance data into an analytical
 warehouse for business intelligence reporting.
 
 Built to demonstrate production-grade data engineering practices
@@ -11,65 +11,62 @@ directly to a real AWS service.
 ---
 
 ## 📐 Architecture
-Raw Data Sources
- │
- ▼
- ┌─────────────┐ ┌──────────────────────────────────────────┐
- │ Public │ │ Docker Environment │
- │ Insurance │────▶│ │
- │ Dataset │ │ ┌─────────┐ ┌──────────┐ │
- └─────────────┘ │ │ MinIO │ │ PySpark │ │
- │ │ (S3) │──▶│ Glue │ │
- ┌─────────────┐ │ └─────────┘ └────┬─────┘ │
- │ REST API │────▶│ │ │
- │ (Currency) │ │ ┌──────▼──────┐ │
- └─────────────┘ │ │ DuckDB │ │
- │ │ (Redshift) │ │
- │ └──────┬──────┘ │
- │ │ │
- │ ┌──────────────────▼────────────────┐ │
- │ │ Apache Airflow (Step Fns) │ │
- │ │ Great Expectations (Quality) │ │
- │ └───────────────────────────────────┘ │
- └──────────────────────────────────────────┘
- │
- ┌──────────▼──────────┐
- │ GitHub Actions │
- │ CI/CD │
- └─────────────────────┘
+
+```mermaid
+flowchart TD
+    A[📁 Public Insurance Dataset] -->|CSV Download| B
+    C[🌐 REST API - Currency Data] -->|API Call| B
+
+    subgraph Docker["🐳 Docker Environment - Local AWS Infrastructure"]
+        B[MinIO Bucket\nAWS S3 Equivalent]
+        B -->|Raw Data| D[PySpark Transformation Job\nAWS Glue Equivalent]
+        D -->|Cleaned Data| E[DuckDB Warehouse\nAmazon Redshift Equivalent]
+        F[Apache Airflow\nAWS Step Functions Equivalent] -->|Orchestrates| B
+        F -->|Orchestrates| D
+        F -->|Orchestrates| E
+        G[Great Expectations\nDatadog Quality Equivalent] -->|Validates| D
+        G -->|Validates| E
+    end
+
+    E -->|Analytical Data| H[📊 BI Reports]
+    Docker -->|Push on commit| I[⚙️ GitHub Actions CI/CD\nRun Tests + Lint]
+```
 
 ---
 
 ## 🗂️ Project Structure
+
+```
 insurance-data-pipeline/
- ├── .github/
- │ └── workflows/
- │ └── ci.yml # GitHub Actions CI/CD pipeline
- ├── dags/
- │ └── insurance_pipeline_dag.py # Airflow DAG orchestration
- ├── jobs/
- │ ├── ingestion/
- │ │ └── ingest_raw_data.py # Ingest raw data → MinIO (S3)
- │ ├── transformation/
- │ │ └── transform_claims.py # PySpark transformation (Glue)
- │ └── loading/
- │ └── load_to_warehouse.py # Load to DuckDB (Redshift)
- ├── infra/
- │ └── docker-compose.yml # Local AWS infrastructure
- ├── data/
- │ ├── raw/ # Raw landing zone (S3 raw bucket)
- │ └── processed/ # Cleaned data (S3 processed bucket)
- ├── tests/
- │ ├── test_ingestion.py # Unit tests - ingestion layer
- │ ├── test_transformation.py # Unit tests - transformation layer
- │ └── test_loading.py # Unit tests - loading layer
- ├── config/
- │ └── pipeline_config.yml # Pipeline configuration
- ├── docs/ # Architecture diagrams
- ├── notebooks/ # Exploratory data analysis
- ├── .env.example # Environment variable template
- ├── requirements.txt # Python dependencies
- └── README.md
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── dags/
+│   └── insurance_pipeline_dag.py
+├── jobs/
+│   ├── ingestion/
+│   │   └── ingest_raw_data.py
+│   ├── transformation/
+│   │   └── transform_claims.py
+│   └── loading/
+│       └── load_to_warehouse.py
+├── infra/
+│   └── docker-compose.yml
+├── data/
+│   ├── raw/
+│   └── processed/
+├── tests/
+│   ├── test_ingestion.py
+│   ├── test_transformation.py
+│   └── test_loading.py
+├── config/
+│   └── pipeline_config.yml
+├── docs/
+├── notebooks/
+├── .env.example
+├── requirements.txt
+└── README.md
+```
 
 ---
 
@@ -90,7 +87,7 @@ insurance-data-pipeline/
 
 ## 📊 Dataset
 
-This pipeline processes the 
+This pipeline processes the
 [publicly available US Insurance Dataset](https://www.kaggle.com/datasets/teertha/ushealthinsurancedataset)
 containing insurance claims, premiums, and policyholder data.
 
@@ -111,28 +108,33 @@ containing insurance claims, premiums, and policyholder data.
 - Git
 
 ### 1. Clone the repository
+
 ```bash
 git clone https://github.com/Gokul-Prasath-NAS/insurance-data-pipeline.git
 cd insurance-data-pipeline
 ```
 
 ### 2. Set up environment variables
+
 ```bash
 cp .env.example .env
 # Edit .env with your local configuration
 ```
 
 ### 3. Install Python dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Start the infrastructure
+
 ```bash
 docker-compose -f infra/docker-compose.yml up -d
 ```
 
 ### 5. Run the pipeline
+
 ```bash
 # Access Airflow UI at http://localhost:8080
 # Trigger the insurance_pipeline_dag
@@ -141,15 +143,16 @@ docker-compose -f infra/docker-compose.yml up -d
 ---
 
 ## 📁 Pipeline Flow
-RAW DATA TRANSFORM WAREHOUSE
 
-CSV Files PySpark Job DuckDB Tables
- │ │ │
- ▼ ▼ ▼
- MinIO Bucket ────────► Cleaned & ──────────► dim_policies
- (S3 raw/) Enriched dim_customers
- Dataset fact_claims
- fact_premiums
+```
+RAW DATA          TRANSFORM            WAREHOUSE
+--------          ---------            ---------
+CSV Files    -->  PySpark Job    -->   DuckDB Tables
+MinIO Bucket      Cleaned Data         dim_policies
+(S3 raw/)         Enriched Data        dim_customers
+                                       fact_claims
+                                       fact_premiums
+```
 
 ---
 
@@ -176,7 +179,9 @@ GitHub Actions workflow automatically:
 
 ## 👤 Author
 
-**Gokul Prasath NAS**  
-Data Engineer | AWS · PySpark · Snowflake · Redshift  
-[LinkedIn](https://www.linkedin.com/in/gokul-prasath-nas) · 
-[GitHub](https://github.com/Gokul-Prasath-NAS)
+**Gokul Prasath NAS**
+Data Engineer | AWS · PySpark · Snowflake · Redshift
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue)](https://www.linkedin.com/in/gokul-prasath-nas)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-black)](https://github.com/Gokul-Prasath-NAS)
+
