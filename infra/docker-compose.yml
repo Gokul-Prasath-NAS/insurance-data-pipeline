@@ -4,8 +4,6 @@
 # postgres          -> RDS (Airflow metadata store)
 # duckdb (files)    -> Amazon Redshift / Snowflake
 
-version: '3.8'
-
 # Reusable Airflow config block
 # x-airflow-common avoids repeating the same config
 # across webserver and scheduler services
@@ -43,8 +41,8 @@ services:
       - "9000:9000"  # S3 API - used by boto3/PySpark
       - "9001:9001"  # Web console - like AWS S3 console
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -52,7 +50,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
-      retries: 3
+      retries: 5
+      start_period: 30s
     networks:
       - pipeline_network
 
@@ -65,13 +64,14 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
-      mc mb --ignore-existing local/$${MINIO_BUCKET_RAW} &&
-      mc mb --ignore-existing local/$${MINIO_BUCKET_PROCESSED} &&
-      echo '✅ Buckets created: '$${MINIO_BUCKET_RAW}' and '$${MINIO_BUCKET_PROCESSED}
-      "
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        mc alias set local http://minio:9000 minioadmin minioadmin123 &&
+        mc mb --ignore-existing local/insurance-raw &&
+        mc mb --ignore-existing local/insurance-processed &&
+        echo 'Buckets created: successfully'
     networks:
       - pipeline_network
 
@@ -89,10 +89,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-u", "airflow"]
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 40s
     networks:
       - pipeline_network
 
@@ -109,13 +110,13 @@ services:
       - |
         airflow db migrate &&
         airflow users create \
-          --username $${AIRFLOW_USERNAME} \
+          --username admin \
           --firstname Gokul \
           --lastname Prasath \
           --role Admin \
           --email gokulprasath560@gmail.com \
-          --password $${AIRFLOW_PASSWORD} &&
-        echo '✅ Airflow initialized successfully'
+          --password admin123 &&
+        echo 'Airflow initialized successfully'
     restart: on-failure
 
   # Airflow Webserver
@@ -138,6 +139,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 60s
     restart: unless-stopped
 
   # Airflow Scheduler
