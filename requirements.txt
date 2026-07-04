@@ -5,7 +5,7 @@
 # ---- Core Data Processing ----
 pyspark==3.5.3          # AWS Glue equivalent - distributed data transformation
 pandas==2.2.3           # Data manipulation and CSV handling
-pyarrow==17.0.0         # Fast columnar data format - used by PySpark and DuckDB
+pyarrow==20.0.0         # Fast columnar data format - used by PySpark and DuckDB
 
 # ---- Storage & Cloud ----
 boto3==1.35.36          # AWS SDK - talks to MinIO (S3 equivalent)
@@ -16,7 +16,7 @@ python-dotenv==1.0.1    # Loads .env file into environment variables
 duckdb==1.1.3           # Local warehouse - Amazon Redshift equivalent
 
 # ---- Data Quality ----
-great-expectations==1.2.5   # Data validation - Datadog reconciliation equivalent
+great-expectations==1.18.2  # Data validation - Datadog reconciliation equivalent
 
 # ---- Pipeline Configuration ----
 pyyaml==6.0.2           # Read pipeline_config.yml
