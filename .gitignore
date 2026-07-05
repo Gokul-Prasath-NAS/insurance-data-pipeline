@@ -227,6 +227,7 @@ __marimo__/
 # Raw and processed data files - too large for GitHub
 data/raw/
 data/processed/
+data/warehouse/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
