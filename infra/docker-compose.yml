@@ -96,6 +96,32 @@ services:
       start_period: 40s
     networks:
       - pipeline_network
+ 
+  # PySpark
+  # Custom built image - AWS Glue equivalent runs PySpark jobs locally
+  # Built from infra/Dockerfile.spark
+  # Runs on Linux - no winutils needed
+  spark:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.spark
+    image: insurance_spark:latest
+    container_name: insurance_spark
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_BUCKET_RAW: insurance-raw
+      MINIO_BUCKET_PROCESSED: insurance-processed
+    volumes:
+      - ../jobs:/opt/spark/app/jobs
+      - ../data:/opt/spark/app/data
+      - ../config:/opt/spark/app/config
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - pipeline_network
 
   # Airflow Init
   # Runs once to set up Airflow database tables
@@ -155,6 +181,7 @@ services:
       airflow-init:
         condition: service_completed_successfully
     restart: unless-stopped
+
 
 # Volumes
 # Persistent storage that survives container restarts

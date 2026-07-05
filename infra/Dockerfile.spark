@@ -1,0 +1,40 @@
+# Custom PySpark Image for Insurance Data Pipeline
+# AWS Glue equivalent Linux-based PySpark runtime
+# Base: Python 3.12 slim (Debian Linux)
+# Adds: Java 17, PySpark 3.5.1, pipeline dependencies
+
+FROM python:3.12-slim-bookworm
+
+# Install Java 17 (required by PySpark)
+RUN apt-get update && apt-get install -y \
+    openjdk-17-jdk-headless \
+    curl \
+    procps \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Java environment
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+# Set working directory
+WORKDIR /opt/spark/app
+
+# Install Python dependencies
+COPY ../requirements.txt .
+
+RUN pip install --no-cache-dir \
+    pyspark==3.5.1 \
+    pandas \
+    pyarrow \
+    boto3 \
+    requests \
+    python-dotenv \
+    pyyaml
+
+# Set PySpark environment
+ENV PYSPARK_PYTHON=python3
+ENV PYTHONPATH=/opt/spark/app
+
+# Default command
+CMD ["python3"]
