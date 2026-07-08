@@ -52,6 +52,7 @@ insurance-data-pipeline/
 │       └── load_to_warehouse.py
 ├── infra/
 │   └── docker-compose.yml
+│   └── Dockerfile.spark
 ├── data/
 │   ├── raw/
 │   └── processed/
@@ -179,8 +180,8 @@ GitHub Actions workflow automatically:
 
 ## 👤 Author
 
-**Gokul Prasath NAS**
-Data Engineer | AWS · PySpark · Snowflake · Redshift
+**Gokul Prasath N A S**
+Data Engineer | AWS · PySpark · Snowflake · SQL · SSIS · Power BI
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue)](https://www.linkedin.com/in/gokul-prasath-nas)
 [![GitHub](https://img.shields.io/badge/GitHub-Follow-black)](https://github.com/Gokul-Prasath-NAS)
