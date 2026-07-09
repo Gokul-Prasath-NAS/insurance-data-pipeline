@@ -110,7 +110,7 @@ jobs:
         run: |
           pytest tests/ -v \
             --cov=jobs \
-            --cov-report-term-missing \
+            --cov-report=term-missing \
             --cov-report=xml \
             --ignore=tests/test_transformation.py
 
@@ -118,7 +118,7 @@ jobs:
         run: |
           pytest tests/test_transformation.py -v \
             --cov=jobs/transformation \
-            --cov-report-term-missing
+            --cov-report=term-missing
         env:
           JAVA_HOME: ${{ env.JAVA_HOME }}
           PYSPARK_PYTHON: python3
