@@ -29,10 +29,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ingest_raw_data")
 
+
 def get_minio_client():
     """
-    Creates a boto3 S3 client pointed at our local MinIO instance. 
-    This is the SAME boto3 client code used to talk to real AWS S3 - only the endpoint_url is different. 
+    Creates a boto3 S3 client pointed at our local MinIO instance.
+    This is the SAME boto3 client code used to talk to real AWS S3 - only the endpoint_url is different.
     In production, just remove endpoint_url and this code talks to actual Amazon S3 unchanged.
     """
     endpoint = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
@@ -48,6 +49,7 @@ def get_minio_client():
         region_name="us-east-1",
     )
 
+
 def download_dataset(url: str) -> bytes:
     """Downloads the raw CSV file from the public source."""
     logger.info(f"Downloading dataset from: {url}")
@@ -56,10 +58,12 @@ def download_dataset(url: str) -> bytes:
     logger.info(f"Downloaded {len(response.content)} bytes")
     return response.content
 
+
 def upload_to_minio(client, bucket: str, key: str, data: bytes):
     """Uploads raw bytes to a MinIO bucket - identical to an S3 put_object call."""
     client.put_object(Bucket=bucket, Key=key, Body=data)
     logger.info(f"Uploaded to s3://{bucket}/{key}")
+
 
 def main():
     raw_data_url = os.getenv("RAW_DATA_URL")
@@ -85,6 +89,7 @@ def main():
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

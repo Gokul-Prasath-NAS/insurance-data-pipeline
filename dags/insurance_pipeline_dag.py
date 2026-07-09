@@ -13,9 +13,9 @@ AWS equivalent: AWS Step Functions state machine triggering Glue jobs in sequenc
 Schedule: Daily at 6:00 AM UTC
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta  # noqa: F401
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator  # noqa: F401
 from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 
@@ -84,7 +84,6 @@ Downloads public US insurance dataset and uploads to MinIO raw bucket with UTC t
     transform_task = BashOperator(
         task_id="transform_claims",
         bash_command="docker exec insurance_spark python3 /opt/spark/app/jobs/transformation/transform_claims.py",
-        
         # """
         # docker run --rm \
         #   --network infra_pipeline_network \
@@ -98,7 +97,6 @@ Downloads public US insurance dataset and uploads to MinIO raw bucket with UTC t
         #   insurance_spark:latest \
         #   python3 /opt/spark/app/jobs/transformation/transform_claims.py
         # """,
-        
         doc_md="""
 ### Transform Claims
 PySpark job reading raw CSV from MinIO, applying business transformations and writing enriched Parquet to processed bucket.

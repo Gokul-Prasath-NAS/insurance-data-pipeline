@@ -15,7 +15,7 @@ Warehouse schema:
 """
 
 import os
-import sys
+import sys  # noqa: F401
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +37,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("load_to_warehouse")
 
+
 def get_minio_client():
     """Creates boto3 S3 client pointed at MinIO."""
     return boto3.client(
@@ -48,12 +49,13 @@ def get_minio_client():
         region_name="us-east-1",
     )
 
+
 def get_warehouse_connection(db_path: str) -> duckdb.DuckDBPyConnection:
     """
     Creates a DuckDB connection - local Redshift equivalent.
     DuckDB is an embedded analytical database - no server needed.
     It runs inside your Python process, reads Parquet natively, and supports full SQL including window functions and CTEs.
-    
+
     In production this connection string would point to:
     Amazon Redshift: redshift+psycopg2://user:pass@host:5439/db
     Snowflake: snowflake://user:pass@account/db/schema
@@ -63,19 +65,21 @@ def get_warehouse_connection(db_path: str) -> duckdb.DuckDBPyConnection:
     logger.info(f"Connected to warehouse: {db_path}")
     return conn
 
+
 def create_warehouse_schema(conn: duckdb.DuckDBPyConnection):
     """
     Creates the dimensional warehouse schema.
     We use a star schema - industry standard for insurance analytics:
     - Dimension tables (dim_*) contain descriptive attributes
     - Fact table (fact_claims) contains measurable events/metrics
-    
+
     This mirrors the Redshift schema - same DDL concepts, different syntax.
     """
     logger.info("Creating warehouse schema...")
 
     # Dimension: Customers
-    conn.execute("""
+    conn.execute(
+        """
     CREATE TABLE IF NOT EXISTS dim_customers (
         customer_id INTEGER PRIMARY KEY,
         age INTEGER NOT NULL,
@@ -87,18 +91,22 @@ def create_warehouse_schema(conn: duckdb.DuckDBPyConnection):
         children INTEGER NOT NULL,
         ingestion_ts TIMESTAMP NOT NULL
     );
-    """)
+    """
+    )
 
     # Dimension: Regions
-    conn.execute("""
+    conn.execute(
+        """
     CREATE TABLE IF NOT EXISTS dim_regions (
         region_id INTEGER PRIMARY KEY,
         region_name VARCHAR(50) NOT NULL UNIQUE
     );
-    """)
+    """
+    )
 
     # Fact: Claims
-    conn.execute("""
+    conn.execute(
+        """
     CREATE TABLE IF NOT EXISTS fact_claims (
         claim_id INTEGER PRIMARY KEY,
         customer_id INTEGER NOT NULL,
@@ -111,15 +119,17 @@ def create_warehouse_schema(conn: duckdb.DuckDBPyConnection):
         FOREIGN KEY (customer_id) REFERENCES dim_customers(customer_id),
         FOREIGN KEY (region_id) REFERENCES dim_regions(region_id)
     );
-    """)
+    """
+    )
     logger.info("Warehouse schema created successfully")
+
 
 def download_latest_parquet(client, bucket: str) -> pd.DataFrame:
     """
     Downloads the latest transformed Parquet folder from MinIO and reads it into a pandas DataFrame.
 
-    In production Redshift COPY command reads directly from S3: 
-    COPY table FROM 's3://bucket/prefix' IAM_ROLE... FORMAT PARQUET 
+    In production Redshift COPY command reads directly from S3:
+    COPY table FROM 's3://bucket/prefix' IAM_ROLE... FORMAT PARQUET
     We simulate this pattern by downloading then loading locally.
     """
     logger.info(f"Listing objects in bucket: {bucket}")
@@ -129,10 +139,7 @@ def download_latest_parquet(client, bucket: str) -> pd.DataFrame:
         raise FileNotFoundError(f"No files found in bucket: {bucket}")
 
     # Find all parquet files (exclude SUCCESS marker files)
-    parquet_files = [
-        obj for obj in response["Contents"]
-        if obj["Key"].endswith(".parquet")
-    ]
+    parquet_files = [obj for obj in response["Contents"] if obj["Key"].endswith(".parquet")]
 
     if not parquet_files:
         raise FileNotFoundError("No Parquet files found in processed bucket")
@@ -146,7 +153,7 @@ def download_latest_parquet(client, bucket: str) -> pd.DataFrame:
     # tempfile.gettempdir() returns correct path on any OS (Windows, Linux, Mac)
     local_path = os.path.join(tempfile.gettempdir(), "latest_transformed.parquet")
     ## Ensure local directory exists for fallback paths
-    #Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+    # Path(local_path).parent.mkdir(parents=True, exist_ok=True)
     client.download_file(bucket, latest_key, local_path)
 
     # Read into pandas DataFrame
@@ -154,10 +161,11 @@ def download_latest_parquet(client, bucket: str) -> pd.DataFrame:
     logger.info(f"Loaded {len(df)} records from Parquet")
     return df
 
+
 def load_dim_customers(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame):
     """
-    Loads policyholder demographic data into dim_customers. 
-    Uses INSERT OR REPLACE for idempotent loading - safe to run multiple times without duplicate records. 
+    Loads policyholder demographic data into dim_customers.
+    Uses INSERT OR REPLACE for idempotent loading - safe to run multiple times without duplicate records.
     This mirrors MERGE/UPSERT patterns in Redshift and Snowflake.
     """
     logger.info("Loading dim_customers...")
@@ -166,9 +174,18 @@ def load_dim_customers(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame):
     conn.execute("DELETE FROM dim_customers")
 
     # Build dimension dataframe
-    columns_to_extract = ["age", "sex", "age_group", "bmi", "bmi_category", "smoker", "children", "ingestion_timestamp"]
+    columns_to_extract = [
+        "age",
+        "sex",
+        "age_group",
+        "bmi",
+        "bmi_category",
+        "smoker",
+        "children",
+        "ingestion_timestamp",
+    ]
     dim_df = df[columns_to_extract].drop_duplicates().reset_index(drop=True)
-    
+
     dim_df.insert(0, "customer_id", range(1, len(dim_df) + 1))
     dim_df["ingestion_ts"] = pd.to_datetime(dim_df["ingestion_timestamp"])
     dim_df = dim_df.drop(columns=["ingestion_timestamp"])
@@ -179,17 +196,15 @@ def load_dim_customers(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame):
     logger.info(f"dim_customers loaded: {count} records")
     return dim_df
 
+
 def load_dim_regions(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame):
     """Loads unique regions into dim_regions reference table."""
     logger.info("Loading dim_regions...")
-    
+
     conn.execute("DELETE FROM dim_regions")
 
     regions = df["region"].unique()
-    region_df = pd.DataFrame({
-        "region_id": range(1, len(regions) + 1),
-        "region_name": regions
-    })
+    region_df = pd.DataFrame({"region_id": range(1, len(regions) + 1), "region_name": regions})
 
     conn.execute("INSERT INTO dim_regions SELECT * FROM region_df")
 
@@ -197,7 +212,13 @@ def load_dim_regions(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame):
     logger.info(f"dim_regions loaded: {count} records")
     return region_df
 
-def load_fact_claims(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame, dim_customers: pd.DataFrame, dim_regions: pd.DataFrame):
+
+def load_fact_claims(
+    conn: duckdb.DuckDBPyConnection,
+    df: pd.DataFrame,
+    dim_customers: pd.DataFrame,
+    dim_regions: pd.DataFrame,
+):
     """
     Loads insurance claims into the central fact table.
     Joins dimension tables to resolve foreign keys - same pattern as Glue jobs joining staging tables before loading into Redshift.
@@ -209,25 +230,21 @@ def load_fact_claims(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame, dim_cust
     fact_df = df.merge(
         dim_customers[["customer_id", "age", "sex", "bmi", "smoker", "children"]],
         on=["age", "sex", "bmi", "smoker", "children"],
-        how="left"
+        how="left",
     )
 
     # Resolve region foreign keys
-    fact_df = fact_df.merge(
-        dim_regions,
-        left_on="region",
-        right_on="region_name",
-        how="left"
-    )
+    fact_df = fact_df.merge(dim_regions, left_on="region", right_on="region_name", how="left")
 
-    fact_df = fact_df[[
-        "charges", "charges_bucket", "risk_score", "pipeline_version", "customer_id", "region_id"
-    ]].reset_index(drop=True)
+    fact_df = fact_df[
+        ["charges", "charges_bucket", "risk_score", "pipeline_version", "customer_id", "region_id"]
+    ].reset_index(drop=True)
 
     fact_df.insert(0, "claim_id", range(1, len(fact_df) + 1))
     fact_df["loaded_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
-    conn.execute("""
+    conn.execute(
+        """
     INSERT INTO fact_claims
     SELECT 
         claim_id,
@@ -239,10 +256,12 @@ def load_fact_claims(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame, dim_cust
         pipeline_version,
         loaded_at::TIMESTAMP
     FROM fact_df
-    """)
+    """
+    )
 
     count = conn.execute("SELECT COUNT(*) FROM fact_claims").fetchone()[0]
     logger.info(f"fact_claims loaded: {count} records")
+
 
 def run_validation_queries(conn: duckdb.DuckDBPyConnection):
     """
@@ -258,17 +277,20 @@ def run_validation_queries(conn: duckdb.DuckDBPyConnection):
         logger.info(f"{table}: {count} records")
 
     # Referential integrity check
-    orphans = conn.execute("""
+    orphans = conn.execute(
+        """
     SELECT COUNT(*) 
     FROM fact_claims f 
     LEFT JOIN dim_customers c ON f.customer_id = c.customer_id 
     WHERE c.customer_id IS NULL
-    """).fetchone()[0]
+    """
+    ).fetchone()[0]
     logger.info(f"Orphaned fact records (should be 0): {orphans}")
 
     # Sample analytical query - avg charges by region
     logger.info("Sample analytics - avg charges by region:")
-    results = conn.execute("""
+    results = conn.execute(
+        """
     SELECT 
         r.region_name,
         ROUND(AVG(f.charges), 2) AS avg_charges,
@@ -277,10 +299,12 @@ def run_validation_queries(conn: duckdb.DuckDBPyConnection):
     JOIN dim_regions r ON f.region_id = r.region_id 
     GROUP BY r.region_name
     ORDER BY avg_charges DESC
-    """).fetchall()
+    """
+    ).fetchall()
 
     for row in results:
         logger.info(f"[{row[0]}]: ${row[1]} avg ({row[2]} policies)")
+
 
 def main():
     db_path = os.getenv("DUCKDB_DATABASE_PATH", "./data/warehouse/insurance.duckdb")
@@ -315,6 +339,7 @@ def main():
     except Exception as e:
         logger.error(f"Loading job failed: {e}")
         raise
+
 
 if __name__ == "__main__":
     main()

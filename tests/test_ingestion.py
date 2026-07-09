@@ -23,6 +23,7 @@ from jobs.ingestion.ingest_raw_data import (
     get_minio_client,
 )
 
+
 class TestGetMinioClient:
     """Tests for MinIO client creation."""
 
@@ -33,13 +34,17 @@ class TestGetMinioClient:
 
     def test_client_uses_env_variables(self):
         """Client should use MINIO_ENDPOINT from environment."""
-        with patch.dict(os.environ, {
-            "MINIO_ENDPOINT": "http://localhost:9000", 
-            "MINIO_ROOT_USER": "testuser", 
-            "MINIO_ROOT_PASSWORD": "testpass"
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "MINIO_ENDPOINT": "http://localhost:9000",
+                "MINIO_ROOT_USER": "testuser",
+                "MINIO_ROOT_PASSWORD": "testpass",
+            },
+        ):
             client = get_minio_client()
             assert client is not None
+
 
 class TestDownloadDataset:
     """Tests for dataset download function."""
@@ -65,10 +70,9 @@ class TestDownloadDataset:
     def test_download_raises_on_http_error(self, mock_get):
         """Should raise an exception when HTTP request fails."""
         import requests
+
         mock_response = MagicMock()
-        mock_response.raise_for_status.side_effect = (
-            requests.exceptions.HTTPError("404 Not Found")
-        )
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found")
         mock_get.return_value = mock_response
 
         with pytest.raises(requests.exceptions.HTTPError):
@@ -78,10 +82,12 @@ class TestDownloadDataset:
     def test_download_raises_on_connection_error(self, mock_get):
         """Should raise exception when connection fails."""
         import requests
+
         mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
 
         with pytest.raises(requests.exceptions.ConnectionError):
             download_dataset("http://unreachable-host.com/data.csv")
+
 
 class TestUploadToMinio:
     """Tests for MinIO upload function."""
@@ -98,28 +104,19 @@ class TestUploadToMinio:
         upload_to_minio(mock_client, bucket, key, test_data)
 
         # Assert
-        mock_client.put_object.assert_called_once_with(
-            Bucket=bucket, 
-            Key=key, 
-            Body=test_data
-        )
+        mock_client.put_object.assert_called_once_with(Bucket=bucket, Key=key, Body=test_data)
 
     def test_gather_raises_on_client_error(self):
         """Should propagate exceptions from boto3 client."""
         from botocore.exceptions import ClientError
+
         mock_client = MagicMock()
         mock_client.put_object.side_effect = ClientError(
-            {"Error": {"Code": "NoSuchBucket", "Message": "Bucket not found"}}, 
-            "PutObject"
+            {"Error": {"Code": "NoSuchBucket", "Message": "Bucket not found"}}, "PutObject"
         )
 
         with pytest.raises(ClientError):
-            upload_to_minio(
-                mock_client, 
-                "nonexistent-bucket", 
-                "test.csv", 
-                b"data"
-            )
+            upload_to_minio(mock_client, "nonexistent-bucket", "test.csv", b"data")
 
     def test_upload_with_empty_data(self):
         """Should handle empty file upload without error."""

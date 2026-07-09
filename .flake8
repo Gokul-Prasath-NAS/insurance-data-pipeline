@@ -1,0 +1,22 @@
+[flake8]
+max-line-length = 200
+exclude =
+    __pycache__,
+    .git,
+    .env,
+    logs/,
+    data/
+
+# E266: too many leading '#' we use ## for section headers intentionally
+# E265: block comment format black handles this differently
+# W503: line break before binary operator conflicts with black
+ignore = E266, E265, W503, W291, W293
+per-file-ignores =
+    # E402: module level import not at top needed for sys.path in test files
+    tests/*.py: E402, F401
+    # F401: imported but unused SparkSession needed for type hints
+    jobs/transformation/transform_claims.py: F401
+    dags/*.py: F401
+
+statistics = True
+count = True

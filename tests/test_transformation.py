@@ -25,10 +25,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 def spark():
     """Creates a local SparkSession for testing."""
     from pyspark.sql import SparkSession
-    
+
     spark = (
-        SparkSession.builder
-        .appName("InsuranceTransformationTests")
+        SparkSession.builder.appName("InsuranceTransformationTests")
         .master("local[1]")  # single thread for tests
         .config("spark.ui.enabled", "false")  # disable Spark UI for speed
         .config("spark.sql.shuffle.partitions", "1")
@@ -38,6 +37,7 @@ def spark():
     yield spark
     spark.stop()
 
+
 @pytest.fixture
 def sample_df(spark):
     """
@@ -46,15 +46,17 @@ def sample_df(spark):
     """
     from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType
 
-    schema = StructType([
-        StructField("age", IntegerType(), False),
-        StructField("sex", StringType(), False),
-        StructField("bmi", DoubleType(), False),
-        StructField("children", IntegerType(), False),
-        StructField("smoker", StringType(), False),
-        StructField("region", StringType(), False),
-        StructField("charges", DoubleType(), False)
-    ])
+    schema = StructType(
+        [
+            StructField("age", IntegerType(), False),
+            StructField("sex", StringType(), False),
+            StructField("bmi", DoubleType(), False),
+            StructField("children", IntegerType(), False),
+            StructField("smoker", StringType(), False),
+            StructField("region", StringType(), False),
+            StructField("charges", DoubleType(), False),
+        ]
+    )
 
     data = [
         (19, "female", 27.9, 0, "yes", "southwest", 16884.92),
@@ -66,35 +68,39 @@ def sample_df(spark):
         (46, "female", 33.44, 1, "no", "southeast", 8240.59),
         (37, "female", 27.74, 3, "no", "northwest", 7281.51),
         (37, "male", 29.83, 2, "no", "northeast", 6406.41),
-        (60, "female", 25.84, 0, "no", "northwest", 28923.14)
+        (60, "female", 25.84, 0, "no", "northwest", 28923.14),
     ]
 
     return spark.createDataFrame(data, schema)
+
 
 @pytest.fixture
 def dirty_df(spark):
     """DataFrame with invalid records for validation testing."""
     from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType
 
-    schema = StructType([
-        StructField("age", IntegerType(), True),
-        StructField("sex", StringType(), True),
-        StructField("bmi", DoubleType(), True),
-        StructField("children", IntegerType(), True),
-        StructField("smoker", StringType(), True),
-        StructField("region", StringType(), True),
-        StructField("charges", DoubleType(), True)
-    ])
+    schema = StructType(
+        [
+            StructField("age", IntegerType(), True),
+            StructField("sex", StringType(), True),
+            StructField("bmi", DoubleType(), True),
+            StructField("children", IntegerType(), True),
+            StructField("smoker", StringType(), True),
+            StructField("region", StringType(), True),
+            StructField("charges", DoubleType(), True),
+        ]
+    )
 
     data = [
         (19, "female", 27.9, 0, "yes", "southwest", 16884.92),  # valid
-        (None, "male", 33.77, 1, "no", "southeast", 1725.55),   # null age
-        (28, "male", -5.0, 3, "no", "southeast", 4449.46),      # invalid bmi
-        (200, "male", 28.88, 0, "no", "northwest", 3866.86),    # invalid age
-        (33, "male", 22.70, 0, "no", "northwest", -100.0)       # invalid charges
+        (None, "male", 33.77, 1, "no", "southeast", 1725.55),  # null age
+        (28, "male", -5.0, 3, "no", "southeast", 4449.46),  # invalid bmi
+        (200, "male", 28.88, 0, "no", "northwest", 3866.86),  # invalid age
+        (33, "male", 22.70, 0, "no", "northwest", -100.0),  # invalid charges
     ]
 
     return spark.createDataFrame(data, schema)
+
 
 class TestValidateData:
     """Tests for data validation function."""
@@ -102,18 +108,21 @@ class TestValidateData:
     def test_valid_records_pass_through(self, sample_df):
         """All valid records should pass validation unchanged."""
         from jobs.transformation.transform_claims import validate_data
+
         result = validate_data(sample_df)
         assert result.count() == 10
 
     def test_null_values_dropped(self, dirty_df):
         """Records with null critical fields should be dropped."""
         from jobs.transformation.transform_claims import validate_data
+
         result = validate_data(dirty_df)
         assert result.count() < 5
 
     def test_invalid_age_dropped(self, dirty_df):
         """Records with age > 120 or age <= 0 should be dropped."""
         from jobs.transformation.transform_claims import validate_data
+
         result = validate_data(dirty_df)
         ages = [row.age for row in result.collect()]
         assert all(0 < age <= 120 for age in ages)
@@ -121,6 +130,7 @@ class TestValidateData:
     def test_negative_charges_dropped(self, dirty_df):
         """Records with charges <= 0 should be dropped."""
         from jobs.transformation.transform_claims import validate_data
+
         result = validate_data(dirty_df)
         charges = [row.charges for row in result.collect()]
         assert all(c > 0 for c in charges)
@@ -128,9 +138,11 @@ class TestValidateData:
     def test_negative_bmi_dropped(self, dirty_df):
         """Records with bmi <= 0 should be dropped."""
         from jobs.transformation.transform_claims import validate_data
+
         result = validate_data(dirty_df)
         bmis = [row.bmi for row in result.collect()]
         assert all(b > 0 for b in bmis)
+
 
 class TestTransformData:
     """Tests for transformation enrichment functions."""
@@ -138,24 +150,28 @@ class TestTransformData:
     def test_bmi_category_column_added(self, sample_df):
         """bmi_category column should be present after transform."""
         from jobs.transformation.transform_claims import transform_data
+
         result = transform_data(sample_df)
         assert "bmi_category" in result.columns
 
     def test_age_group_column_added(self, sample_df):
         """age_group column should be present after transform."""
         from jobs.transformation.transform_claims import transform_data
+
         result = transform_data(sample_df)
         assert "age_group" in result.columns
 
     def test_risk_score_column_added(self, sample_df):
         """risk score column should be present after transform."""
         from jobs.transformation.transform_claims import transform_data
+
         result = transform_data(sample_df)
         assert "risk_score" in result.columns
 
     def test_charges_bucket_column_added(self, sample_df):
         """charges bucket column should be present after transform."""
         from jobs.transformation.transform_claims import transform_data
+
         result = transform_data(sample_df)
         assert "charges_bucket" in result.columns
 
@@ -163,6 +179,7 @@ class TestTransformData:
         """BMI categories should follow medical classification."""
         from jobs.transformation.transform_claims import transform_data
         from pyspark.sql import functions as F
+
         result = transform_data(sample_df)
 
         # BMI 27.9 should be overweight (25-30)
@@ -177,6 +194,7 @@ class TestTransformData:
         """Age groups should be correctly assigned."""
         from jobs.transformation.transform_claims import transform_data
         from pyspark.sql import functions as F
+
         result = transform_data(sample_df)
 
         # Age 19 should be young adult (<25)
@@ -190,6 +208,7 @@ class TestTransformData:
     def test_smoker_column_lowercased(self, sample_df):
         """Smoker column should be lowercase after transform."""
         from jobs.transformation.transform_claims import transform_data
+
         result = transform_data(sample_df)
         smoker_values = [row.smoker for row in result.select("smoker").collect()]
         assert all(v == v.lower() for v in smoker_values)
@@ -197,6 +216,7 @@ class TestTransformData:
     def test_pipeline_metadata_added(self, sample_df):
         """Pipeline metadata columns should be present."""
         from jobs.transformation.transform_claims import transform_data
+
         result = transform_data(sample_df)
         assert "ingestion_timestamp" in result.columns
         assert "pipeline_version" in result.columns
@@ -204,5 +224,6 @@ class TestTransformData:
     def test_record_count_unchanged(self, sample_df):
         """Transformation should not add or remove records."""
         from jobs.transformation.transform_claims import transform_data
+
         result = transform_data(sample_df)
         assert result.count() == sample_df.count()
